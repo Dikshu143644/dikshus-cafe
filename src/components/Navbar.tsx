@@ -68,7 +68,7 @@ export default function Navbar({
             </div>
             <div>
               <span className="font-serif text-xl tracking-tight font-bold italic text-cafe-charcoal block leading-none font-sans tracking-tight">
-                Cafe Vista
+                Dikshu's Cafe
               </span>
               <span className="text-[8px] uppercase tracking-[0.2em] text-cafe-gold block mt-0.5 font-bold">
                 Artisanal Sanctuary

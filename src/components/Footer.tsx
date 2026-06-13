@@ -29,7 +29,7 @@ export default function Footer({ onNavigate }: FooterProps) {
                 <CafeVistaLogo className="w-7 h-7 text-cafe-gold" gold={true} />
               </div>
               <span className="font-serif text-lg font-semibold tracking-wider text-cafe-cream uppercase font-sans tracking-tight">
-                Cafe Vista
+                Dikshu's Cafe
               </span>
             </div>
             <p className="text-xs text-cafe-cream/60 leading-relaxed font-sans mt-2">
@@ -131,9 +131,9 @@ export default function Footer({ onNavigate }: FooterProps) {
           
           <div className="mb-4 sm:mb-0 text-center sm:text-left">
             <span className="block font-serif tracking-widest text-[#d1b48c] text-sm italic mb-1">
-              Thank you for supporting Cafe Vista!
+              Thank you for supporting Dikshu's Cafe!
             </span>
-            <span>&copy; {new Date().getFullYear()} Cafe Vista Inc. All rights reserved.</span>
+            <span>&copy; {new Date().getFullYear()} Dikshu's Cafe Inc. All rights reserved.</span>
           </div>
 
           {/* Back to Top */}

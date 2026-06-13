@@ -72,7 +72,7 @@ export default function AuthView({ onLogin, onSignup, onVerifyOtp, onNavigate }:
     setSuccessNotice('');
 
     if (!termsChecked) {
-      setErrorNotice('Please accept the Cafe Vista terms explicitly first');
+      setErrorNotice('Please accept the Dikshu's Cafe terms explicitly first');
       return;
     }
 
@@ -133,7 +133,7 @@ export default function AuthView({ onLogin, onSignup, onVerifyOtp, onNavigate }:
             / ENTRANCE SECURITY
           </span>
           <h1 className="font-serif text-3xl font-bold uppercase text-cafe-charcoal font-sans tracking-tight">
-            Cafe Vista Lounge
+            Dikshu's Cafe Lounge
           </h1>
           <p className="text-xs text-cafe-charcoal/60">Registered users unlock exclusive loyalty rewards multiplier coefficients.</p>
         </div>

@@ -273,7 +273,7 @@ export default function OpeningSlider() {
                 textRendering: 'optimizeLegibility',
               }}
             >
-              CAFE VISTA
+              DIKSHU'S CAFE
             </h1>
             
             <p className="font-serif italic text-sm text-[#82715F] tracking-wide font-normal max-w-xs animate-fadeInUp">

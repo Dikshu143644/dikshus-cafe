@@ -526,7 +526,7 @@ export default function App() {
                   textRendering: 'optimizeLegibility',
                 }}
               >
-                CAFE VISTA
+                DIKSHU'S CAFE
               </h1>
 
               <p 
