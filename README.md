@@ -17,6 +17,17 @@ View your app in AI Studio: https://ai.studio/apps/9ac562ef-1908-44db-846a-69b11
 - **Rate Limiting**: Security middleware to prevent brute-force attacks on sensitive endpoints.
 - **3D Interactive Scenes**: Immersive coffee house experience using React Three Fiber.
 
+## Deployment
+
+### Deploy to Render
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/Dikshu143644/dikshus-cafe)
+
+1. Click the **Deploy to Render** button above.
+2. Render will automatically detect the `render.yaml` file.
+3. Provide your `GEMINI_API_KEY` and other secrets in the Render dashboard.
+4. Render will provision a free PostgreSQL database and deploy the web service.
+
 ## Run Locally
 
 **Prerequisites:** Node.js, PostgreSQL
