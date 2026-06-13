@@ -10,6 +10,7 @@ import nodemailer from 'nodemailer';
 import { eq, and, sql, inArray } from 'drizzle-orm';
 
 import { db } from './src/db/index.ts';
+import { getRazorpay } from './lib/razorpay.ts';
 import { users, menuItems, addresses, cartItems, orders, orderItems, bookings } from './src/db/schema.ts';
 import { MenuItem, Booking, Order, User, UserRole, DiningType, BookingStatus, OrderStatus } from './src/types.ts';
 
@@ -788,8 +789,24 @@ async function startServer() {
 
       const totalValue = Number((dbSubtotal - discountValue).toFixed(2));
       
-      // Generate secure Razorpay Test Order reference
-      const rzpTestOrderId = 'order_test_' + Math.random().toString(36).substring(2, 9).toUpperCase();
+      // Generate secure Razorpay Order using the SDK
+      let rzpOrderId = 'order_test_' + Math.random().toString(36).substring(2, 9).toUpperCase();
+      
+      try {
+        const razorpay = getRazorpay();
+        // Convert total to smallest currency unit (paise for INR, cents for USD)
+        // Razorpay expects integer amount. $1.00 = 100 subunits.
+        const rzpAmount = Math.round(totalValue * 100);
+        
+        const rzpResponse = await razorpay.orders.create({
+          amount: rzpAmount,
+          currency: 'INR', // Using INR as requested for Razorpay keys
+          receipt: `receipt_${Date.now()}`,
+        });
+        rzpOrderId = rzpResponse.id;
+      } catch (rzpErr: any) {
+        console.warn('⚠️ Razorpay order creation failed. Falling back to test ID:', rzpErr.message);
+      }
 
       // Insert Order record inside Postgres
       const [newOrder] = await db.insert(orders).values({
@@ -803,7 +820,7 @@ async function startServer() {
         diningType: diningType || 'pickup',
         status: 'pending',
         paymentStatus: 'unpaid',
-        razorpayOrderId: rzpTestOrderId
+        razorpayOrderId: rzpOrderId
       }).returning();
 
       // Insert OrderItems in SQL
