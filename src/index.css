@@ -1,0 +1,147 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=Fira+Code:ital,wght@0,300..700;1,300..700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-serif: "Playfair Display", Georgia, serif;
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Fira Code", monospace;
+
+  /* Artistic Flair Culinary Premium Palette */
+  --color-cafe-charcoal: #2C2621;
+  --color-cafe-smoky: #3B332D;
+  --color-cafe-cream: #FDFBF7;
+  --color-cafe-warm-white: #FEFAF4;
+  --color-cafe-gold: #C4A484;
+  --color-cafe-bronze: #A88665;
+  --color-cafe-latte: #EEDCC6;
+  --color-cafe-dark-glass: rgba(44, 38, 33, 0.72);
+  --color-cafe-light-glass: rgba(253, 251, 247, 0.75);
+}
+
+@layer utilities {
+  /* Dynamic Background Blur & Card Styles with Specular Reflection and Saturated frosting */
+  .glass-dark {
+    background: linear-gradient(135deg, rgba(34, 28, 24, 0.65) 0%, rgba(20, 16, 14, 0.8) 100%);
+    backdrop-filter: blur(24px) saturate(200%);
+    -webkit-backdrop-filter: blur(24px) saturate(200%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 20px 50px -12px rgba(10, 8, 7, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.25), inset 0 -1px 2px rgba(255, 255, 255, 0.05);
+  }
+
+  .glass-light {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.42) 0%, rgba(253, 251, 247, 0.18) 100%);
+    backdrop-filter: blur(28px) saturate(220%);
+    -webkit-backdrop-filter: blur(28px) saturate(220%);
+    border: 1px solid rgba(196, 164, 132, 0.38);
+    box-shadow: 0 16px 45px -10px rgba(44, 38, 33, 0.08), inset 0 1px 3px rgba(255, 255, 255, 0.85), inset 0 -1px 2px rgba(196, 164, 132, 0.12);
+  }
+
+  /* Button glass glow hover and animation */
+  .btn-glass-glow {
+    position: relative;
+    overflow: hidden;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    background: linear-gradient(135deg, rgba(44, 38, 33, 0.92) 0%, rgba(24, 21, 18, 0.96) 100%);
+    box-shadow: 0 4px 15px rgba(44, 38, 33, 0.15);
+  }
+  .btn-glass-glow:hover {
+    background: linear-gradient(135deg, #A88665 0%, #C4A484 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(168, 134, 101, 0.4), 0 0 15px rgba(196, 164, 132, 0.3);
+  }
+  .btn-glass-glow::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -60%;
+    width: 30%;
+    height: 200%;
+    background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.32), transparent);
+    transform: rotate(30deg);
+    transition: all 0.6s ease;
+    pointer-events: none;
+  }
+  .btn-glass-glow:hover::after {
+    left: 150%;
+  }
+
+  .btn-glass-light-glow {
+    position: relative;
+    overflow: hidden;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.65) 0%, rgba(253, 251, 247, 0.45) 100%);
+    border: 1px solid rgba(196, 164, 132, 0.45);
+    color: #2C2621;
+    box-shadow: 0 4px 15px rgba(196, 164, 132, 0.08);
+  }
+  .btn-glass-light-glow:hover {
+    background: linear-gradient(135deg, #FEFAF4 0%, #EEDCC6 100%);
+    border-color: #A88665;
+    color: #2C2621;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(196, 164, 132, 0.22), inset 0 1px 2px rgba(255, 255, 255, 1);
+  }
+
+  /* Coffee glow light effect */
+  .glow-coffee {
+    box-shadow: 0 0 50px -10px rgba(163, 128, 89, 0.25);
+  }
+  
+  .glow-coffee-strong {
+    box-shadow: 0 0 60px 10px rgba(209, 180, 140, 0.15);
+  }
+
+  /* 3D Folding and Flip Classes */
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+
+  .backface-hidden {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+
+  .style-3d {
+    transform-style: preserve-3d;
+    -webkit-transform-style: preserve-3d;
+  }
+
+  .rotate-y-180 {
+    transform: rotateY(180deg);
+  }
+
+  /* Custom Scrollbar for Luxury Aesthetics */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: rgba(24, 21, 18, 0.05);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(163, 128, 89, 0.3);
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(163, 128, 89, 0.6);
+  }
+}
+
+/* Base resets & theme styles */
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-cafe-cream);
+  color: var(--color-cafe-charcoal);
+  overflow-x: hidden;
+  transition: background-color 0.5s ease, color 0.5s ease;
+}
+
+/* Reduced Motion Mode */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

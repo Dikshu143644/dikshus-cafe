@@ -1,0 +1,6 @@
+{
+  "name": "Dikshu's Cafe",
+  "description": "An elegant full-stack café portfolio, featuring a glassmorphism design, real-time booking, menu filters, Razorpay test payment, custom customer and manager dashboards, and an AI-powered Café assistant with server-side Gemini integration.",
+  "requestFramePermissions": ["geolocation", "microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
