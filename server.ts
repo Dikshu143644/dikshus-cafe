@@ -6,6 +6,7 @@ import cookieParser from 'cookie-parser';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
+import nodemailer from 'nodemailer';
 import { eq, and, sql, inArray } from 'drizzle-orm';
 
 import { db } from './src/db/index.ts';
@@ -13,6 +14,36 @@ import { users, menuItems, addresses, cartItems, orders, orderItems, bookings } 
 import { MenuItem, Booking, Order, User, UserRole, DiningType, BookingStatus, OrderStatus } from './src/types.ts';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'cafe_vista_secret_gold_2026';
+
+// ---------------------------------------------------------
+// PRODUCTION EMAIL INFRASTRUCTURE (Secure Transport)
+// ---------------------------------------------------------
+const transporter = nodemailer.createTransport({
+  host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+  port: parseInt(process.env.EMAIL_PORT || '465'),
+  secure: true,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
+
+const sendEmail = async (options: { to: string; subject: string; html: string }) => {
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    console.warn('⚠️ EMAIL_USER/PASS not configured. Logging email content to console instead:');
+    console.log(`To: ${options.to}\nSubject: ${options.subject}\nContent: ${options.html}`);
+    return;
+  }
+  try {
+    await transporter.sendMail({
+      from: `"Dikshu's Cafe" <${process.env.EMAIL_USER}>`,
+      ...options,
+    });
+  } catch (err) {
+    console.error('❌ Failed to send production email:', err);
+  }
+};
+// ---------------------------------------------------------
 
 // Form validation helpers
 const isValidEmail = (email: string) => {
@@ -388,65 +419,44 @@ async function startServer() {
     try {
       // Check existing email to prevent double accounts
       const [existing] = await db.select().from(users).where(eq(sql`LOWER(${users.email})`, email.toLowerCase()));
-      
-      const salt = bcrypt.genSaltSync(12);
-      const hash = bcrypt.hashSync(password, salt);
-      const designRole = (email.toLowerCase().startsWith('admin') || email.toLowerCase() === 'manager@cafevista.com' || email.toLowerCase() === 'omkardsupe143644@gmail.com') ? 'ADMIN' : 'CUSTOMER';
-
-      let finalUser;
-
       if (existing) {
-        // If it is a seeded or existing account, let's gracefully update their password hash and credentials to whatever they just submitted
-        await db.update(users)
-          .set({
-            name,
-            phone,
-            passwordHash: hash,
-            role: designRole
-          })
-          .where(eq(users.id, existing.id));
-        
-        const [updatedUser] = await db.select().from(users).where(eq(users.id, existing.id));
-        finalUser = updatedUser;
-      } else {
-        // Insert new User to Cloud SQL database directly
-        const [insertedUser] = await db.insert(users).values({
-          name,
-          email: email.toLowerCase(),
-          phone,
-          passwordHash: hash,
-          role: designRole
-        }).returning();
-        finalUser = insertedUser;
+        return res.status(400).json({ success: false, message: 'An account with this email already exists. Please sign in.' });
       }
 
-      // Generate Session Token
-      const token = jwt.sign(
-        { id: finalUser.id, email: finalUser.email, name: finalUser.name, role: finalUser.role },
-        JWT_SECRET,
-        { expiresIn: '7d' }
-      );
+      // Generate OTP and Session Data
+      const otp = Math.floor(1000 + Math.random() * 9000).toString();
+      const salt = bcrypt.genSaltSync(12);
+      const hash = bcrypt.hashSync(password, salt);
 
-      res.cookie('session_token', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 7 * 24 * 3600 * 1000
+      otpStore.set(email.toLowerCase(), {
+        code: otp,
+        expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes
+        name,
+        phone,
+        passHash: hash
       });
 
-      res.status(201).json({
+      // Send Production Email
+      await sendEmail({
+        to: email,
+        subject: 'Verify your Dikshu\'s Cafe Account',
+        html: `
+          <div style="font-family: serif; padding: 20px; color: #1A1816; background-color: #FEFAF4;">
+            <h2 style="text-transform: uppercase; letter-spacing: 2px; border-bottom: 1px solid #D4AF37; padding-bottom: 10px;">Entrance Security</h2>
+            <p>Welcome to <b>Dikshu's Cafe</b>, ${name}.</p>
+            <p>To finalize your artisanal sanctuary registration, please use the following verification key:</p>
+            <div style="font-size: 24px; font-weight: bold; font-family: monospace; padding: 15px; background: #FFF; border: 1px dashed #D4AF37; display: inline-block; letter-spacing: 5px;">
+              ${otp}
+            </div>
+            <p style="font-size: 10px; color: #8C7B6B; margin-top: 20px;">This key expires in 10 minutes. If you did not request this, please ignore this email.</p>
+          </div>
+        `
+      });
+
+      res.status(202).json({
         success: true,
-        message: 'Account registered and logged in successfully!',
-        directLoggedIn: true,
-        user: {
-          id: finalUser.id.toString(),
-          name: finalUser.name,
-          email: finalUser.email,
-          phone: finalUser.phone,
-          role: finalUser.role === 'ADMIN' ? 'manager' : 'customer',
-          loyaltyPoints: 340,
-          favorites: []
-        }
+        message: 'A verification key has been sent to your inbox.',
+        directLoggedIn: false
       });
     } catch (err: any) {
       console.error('Registration validation failed:', err.message);
@@ -471,16 +481,14 @@ async function startServer() {
       return res.status(408).json({ success: false, message: 'Validation session has expired. Please try again.' });
     }
 
-    // Accept either computed random OTP or fallback code 1234 for robust test coverage
-    if (sessionData.code !== otp.trim() && otp.trim() !== '1234' && otp.trim() !== '123456') {
-      return res.status(400).json({ success: false, message: 'Incorrect OTP credentials. Please check and try again.' });
+    // Secure verification (Disabled test bypass)
+    if (sessionData.code !== otp.trim()) {
+      return res.status(400).json({ success: false, message: 'Incorrect verification key. Please check and try again.' });
     }
 
     try {
-      // Determine user roles securely
-      const designRole = (email.toLowerCase().startsWith('admin') || email.toLowerCase() === 'manager@cafevista.com') ? 'ADMIN' : 'CUSTOMER';
+      const designRole = (email.toLowerCase() === 'manager@cafevista.com' || email.toLowerCase() === 'omkardsupe143644@gmail.com') ? 'ADMIN' : 'CUSTOMER';
 
-      // Insert User to Cloud SQL database
       const [insertedUser] = await db.insert(users).values({
         name: sessionData.name,
         email: email.toLowerCase(),
@@ -491,7 +499,6 @@ async function startServer() {
 
       otpStore.delete(email.toLowerCase());
 
-      // Generate Session Token
       const token = jwt.sign(
         { id: insertedUser.id, email: insertedUser.email, name: insertedUser.name, role: insertedUser.role },
         JWT_SECRET,
@@ -520,7 +527,7 @@ async function startServer() {
       });
     } catch (err: any) {
       console.error('Verification and insert error:', err.message);
-      res.status(500).json({ success: false, message: 'Failed to insert or verify profile inside Cloud SQL.' });
+      res.status(500).json({ success: false, message: 'Failed to finalize profile creation.' });
     }
   });
 
@@ -532,12 +539,24 @@ async function startServer() {
     }
 
     const sessionData = otpStore.get(email.toLowerCase());
-    const matchedOtp = sessionData ? sessionData.code : Math.floor(100000 + Math.random() * 90000).toString();
+    if (!sessionData) {
+      return res.status(404).json({ success: false, message: 'No active registration session found.' });
+    }
+
+    const newOtp = Math.floor(1000 + Math.random() * 9000).toString();
+    sessionData.code = newOtp;
+    sessionData.expiresAt = Date.now() + 10 * 60 * 1000;
+    otpStore.set(email.toLowerCase(), sessionData);
+
+    await sendEmail({
+      to: email,
+      subject: 'New Verification Key - Dikshu\'s Cafe',
+      html: `<p>Your new verification key is: <b>${newOtp}</b></p>`
+    });
 
     res.json({
       success: true,
-      message: 'A fresh security OTP code has been submitted.',
-      debugOtp: matchedOtp
+      message: 'A fresh security verification key has been submitted to your inbox.'
     });
   });
 
@@ -854,7 +873,7 @@ async function startServer() {
         .update(razorpayOrderId + '|' + razorpayPaymentId)
         .digest('hex');
 
-      const isSignatureValid = (computedSignature === razorpaySignature) || (razorpaySignature === 'test_approved_signature');
+      const isSignatureValid = (computedSignature === razorpaySignature);
       if (!isSignatureValid) {
         return res.status(400).json({ success: false, message: 'Falsified signature match rejected' });
       }
