@@ -18,6 +18,7 @@ import ContactView from './components/ContactView';
 
 import { MenuItem, DiningType, UserRole, User } from './types';
 import { MENU_ITEMS } from './data/mockData';
+import { absoluteUrl, getPageFromPath, getPathForPage, seoPages } from './seo';
 
 interface CartItem {
   item: MenuItem;
@@ -25,7 +26,7 @@ interface CartItem {
 }
 
 export default function App() {
-  const [currentPage, setCurrentPage] = useState<string>('home');
+  const [currentPage, setCurrentPage] = useState<string>(() => getPageFromPath(window.location.pathname));
   const [isTransitioning, setIsTransitioning] = useState<boolean>(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -90,6 +91,49 @@ export default function App() {
     syncServerData();
   }, []);
 
+  useEffect(() => {
+    const handlePopState = () => {
+      setIsTransitioning(false);
+      setCurrentPage(getPageFromPath(window.location.pathname));
+      window.scrollTo({ top: 0, behavior: 'auto' });
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  useEffect(() => {
+    const config = seoPages[currentPage] || seoPages.home;
+    const canonicalUrl = absoluteUrl(config.path);
+
+    const setMeta = (selector: string, attr: 'name' | 'property', key: string, content: string) => {
+      let tag = document.querySelector<HTMLMetaElement>(selector);
+      if (!tag) {
+        tag = document.createElement('meta');
+        tag.setAttribute(attr, key);
+        document.head.appendChild(tag);
+      }
+      tag.setAttribute('content', content);
+    };
+
+    document.title = config.title;
+    setMeta('meta[name="description"]', 'name', 'description', config.description);
+    setMeta('meta[name="robots"]', 'name', 'robots', config.index ? 'index, follow' : 'noindex, nofollow');
+    setMeta('meta[property="og:title"]', 'property', 'og:title', config.title);
+    setMeta('meta[property="og:description"]', 'property', 'og:description', config.description);
+    setMeta('meta[property="og:url"]', 'property', 'og:url', canonicalUrl);
+    setMeta('meta[property="og:type"]', 'property', 'og:type', 'website');
+    setMeta('meta[name="twitter:title"]', 'name', 'twitter:title', config.title);
+    setMeta('meta[name="twitter:description"]', 'name', 'twitter:description', config.description);
+
+    let canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+    if (!canonical) {
+      canonical = document.createElement('link');
+      canonical.setAttribute('rel', 'canonical');
+      document.head.appendChild(canonical);
+    }
+    canonical.setAttribute('href', canonicalUrl);
+  }, [currentPage]);
+
   // Periodic poll to fetch updated preparing tickets or bookings status updates
   useEffect(() => {
     const timer = setInterval(() => {
@@ -100,10 +144,14 @@ export default function App() {
 
   // Back to top scroll alignment upon navigation
   const handleNavigate = (page: string) => {
+    const targetPath = getPathForPage(page);
+    if (window.location.pathname !== targetPath) {
+      window.history.pushState({ page }, '', targetPath);
+    }
     setIsTransitioning(true);
     setTimeout(() => {
       setCurrentPage(page);
-      window.scrollTo({ top: 0, behavior: 'instant' });
+      window.scrollTo({ top: 0, behavior: 'auto' });
     }, 450);
     setTimeout(() => {
       setIsTransitioning(false);
@@ -539,12 +587,12 @@ export default function App() {
               {/* Little separation leaf stamp or customized divider dot */}
               <div className="hidden sm:flex items-center justify-center md:justify-start gap-3 pt-3 opacity-80">
                 <span className="h-[0.5px] w-6 bg-[#C4A484]/35"></span>
-                <span className="text-[10px] text-[#A8947C] font-mono select-none">✦</span>
+                <span className="text-[10px] text-[#A8947C] font-mono select-none">*</span>
                 <span className="h-[0.5px] w-6 bg-[#C4A484]/35"></span>
               </div>
 
               <p className="text-[8px] sm:text-[9px] tracking-[0.38em] uppercase font-bold text-[#A69380] font-mono pt-1">
-                Established MMXVI • London
+                Established 2016 - London
               </p>
             </div>
 

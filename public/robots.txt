@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /checkout
+Disallow: /dashboard
+Disallow: /manager
+Disallow: /login
+Disallow: /assistant
+
+Sitemap: https://dikshus-cafe.onrender.com/sitemap.xml

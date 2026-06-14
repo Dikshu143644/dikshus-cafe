@@ -24,25 +24,47 @@ export default function ScrollSequence({ frameCount, pathFor }: ScrollSequencePr
   const [loaded, setLoaded] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(false);
 
-  // Preload every frame.
+  // Preload the first useful frames immediately, then continue in small batches.
   useEffect(() => {
-    const imgs: HTMLImageElement[] = [];
     let cancelled = false;
     let done = 0;
-    for (let i = 1; i <= frameCount; i++) {
+    let batchTimer: number | undefined;
+    const imgs: HTMLImageElement[] = new Array(frameCount);
+
+    const loadFrame = (index: number) => {
+      if (cancelled || imgs[index - 1]) return;
       const img = new Image();
       img.decoding = 'async';
-      img.src = pathFor(i);
+      img.src = pathFor(index);
       img.onload = img.onerror = () => {
         if (cancelled) return;
         done += 1;
         setLoaded(done);
       };
-      imgs.push(img);
+      imgs[index - 1] = img;
+    };
+
+    const firstBatch = Math.min(12, frameCount);
+    for (let i = 1; i <= firstBatch; i++) {
+      loadFrame(i);
     }
+
+    let nextFrame = firstBatch + 1;
+    const loadNextBatch = () => {
+      for (let count = 0; count < 8 && nextFrame <= frameCount; count += 1) {
+        loadFrame(nextFrame);
+        nextFrame += 1;
+      }
+      if (!cancelled && nextFrame <= frameCount) {
+        batchTimer = window.setTimeout(loadNextBatch, 160);
+      }
+    };
+    batchTimer = window.setTimeout(loadNextBatch, 600);
+
     imagesRef.current = imgs;
     return () => {
       cancelled = true;
+      if (batchTimer) window.clearTimeout(batchTimer);
     };
   }, [frameCount, pathFor]);
 

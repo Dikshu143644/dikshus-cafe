@@ -72,7 +72,7 @@ export default function AuthView({ onLogin, onSignup, onVerifyOtp, onNavigate }:
     setSuccessNotice('');
 
     if (!termsChecked) {
-      setErrorNotice('Please accept the Dikshu's Cafe terms explicitly first');
+      setErrorNotice("Please accept the Dikshu's Cafe terms explicitly first");
       return;
     }
 

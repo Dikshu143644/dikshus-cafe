@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Sparkles, Calendar, Coffee, ChevronRight, Check, Star } from 'lucide-react';
 import { MenuItem } from '../types';
 import ScrollReveal from './ScrollReveal';
@@ -16,6 +16,7 @@ interface HomeViewProps {
 export default function HomeView({ onNavigate, featuredItems, onAddToCart }: HomeViewProps) {
   const [scrollY, setScrollY] = useState(0);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  const heroFramePath = useCallback((i: number) => `/hero-frames/frame-${String(i).padStart(3, "0")}.jpg`, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -41,19 +42,15 @@ export default function HomeView({ onNavigate, featuredItems, onAddToCart }: Hom
       {/* Cinematic scroll-driven footage: fixed backdrop for the whole page */}
       <ScrollSequence
         frameCount={149}
-        pathFor={(i) => `/hero-frames/frame-${String(i).padStart(3, "0")}.jpg`}
+        pathFor={heroFramePath}
       />
       <div className="relative z-10">
       
       {/* ================= HERO SECTION ================= */}
       <section
         id="hero-banner"
-        className="relative min-h-screen flex items-center justify-center px-3 sm:px-6 pt-24 sm:pt-32 pb-16 sm:pb-24 overflow-hidden bg-transparent"
+        className="relative min-h-[92vh] flex items-center justify-center px-3 sm:px-6 pt-24 sm:pt-32 pb-16 sm:pb-24 overflow-hidden bg-transparent"
       >
-{/* Ambient Background Accents */}
-        <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-[#EEDCC6]/55 rounded-full blur-[110px] pointer-events-none opacity-50"></div>
-        <div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] bg-[#D4C3B0]/45 rounded-full blur-[130px] pointer-events-none opacity-40"></div>
-
         <div className="relative z-10 max-w-7xl mx-auto w-full">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
             
@@ -69,11 +66,11 @@ export default function HomeView({ onNavigate, featuredItems, onAddToCart }: Hom
             >
               <div className="space-y-4">
                 <span className="text-[10px] sm:text-xs uppercase tracking-[0.3em] font-extrabold text-[#9C7346] block font-mono">
-                  Experience the Perfect Brew
+                  London's Glasshouse Sanctuary
                 </span>
                 <h1 className="text-4xl sm:text-5xl lg:text-6xl font-serif leading-[1.1] font-light text-[#1D1915] tracking-tight">
-                  Sip Artisan Comfort, <br />
-                  <span className="font-extrabold italic text-[#9C7346]">Crafted Fresh Daily.</span>
+                  Dikshu's Cafe <br />
+                  <span className="font-extrabold italic text-cafe-sage">Crafted Fresh Daily.</span>
                 </h1>
               </div>
               
@@ -84,7 +81,7 @@ export default function HomeView({ onNavigate, featuredItems, onAddToCart }: Hom
               <div className="flex flex-row items-stretch sm:items-center gap-3 sm:gap-4 mt-2">
                 <button
                   onClick={() => onNavigate('menu')}
-                  className="h-12 sm:h-14 px-6 sm:px-8 bg-[#1C1814] text-white hover:bg-[#9C7346] rounded-xl font-extrabold flex items-center justify-center gap-2 shadow-xl hover:scale-[1.03] transition-all cursor-pointer text-xs sm:text-sm"
+                  className="h-12 sm:h-14 px-6 sm:px-8 bg-cafe-ink text-white hover:bg-cafe-sage rounded-md font-extrabold flex items-center justify-center gap-2 shadow-xl hover:scale-[1.02] transition-all cursor-pointer text-xs sm:text-sm"
                 >
                   Order Online
                   <svg className="w-4 h-4 text-[#C4A484]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -94,7 +91,7 @@ export default function HomeView({ onNavigate, featuredItems, onAddToCart }: Hom
                 
                 <button
                   onClick={() => onNavigate('booking')}
-                  className="h-12 sm:h-14 px-5 sm:px-7 border-2 border-[#1C1814] text-[#1C1814] hover:bg-[#1C1814] hover:text-[#FEFAF4] rounded-xl font-extrabold flex items-center justify-center transition-all cursor-pointer text-xs sm:text-sm"
+                  className="h-12 sm:h-14 px-5 sm:px-7 border-2 border-cafe-ink text-cafe-ink hover:bg-cafe-ink hover:text-[#FEFAF4] rounded-md font-extrabold flex items-center justify-center transition-all cursor-pointer text-xs sm:text-sm"
                 >
                   Reserve Table
                 </button>
@@ -104,13 +101,13 @@ export default function HomeView({ onNavigate, featuredItems, onAddToCart }: Hom
               <div className="flex items-center gap-3 pt-4">
                 <div className="flex -space-x-3 select-none shrink-0">
                   <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-[#FDFBF7] bg-stone-300 overflow-hidden shadow-sm">
-                    <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=100&auto=format&fit=crop" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=100&auto=format&fit=crop" alt="" loading="lazy" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                   </div>
                   <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-[#FDFBF7] bg-stone-400 overflow-hidden shadow-sm">
-                    <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=100&auto=format&fit=crop" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=100&auto=format&fit=crop" alt="" loading="lazy" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                   </div>
                   <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-[#FDFBF7] bg-stone-500 overflow-hidden shadow-sm">
-                    <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=100&auto=format&fit=crop" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=100&auto=format&fit=crop" alt="" loading="lazy" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                   </div>
                   <div className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-[#FDFBF7] bg-[#C4A484] text-[9px] sm:text-[10px] text-white font-extrabold shadow-sm">
                     +2k

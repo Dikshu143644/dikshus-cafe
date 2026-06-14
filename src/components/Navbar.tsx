@@ -50,8 +50,8 @@ export default function Navbar({
       id="main-navbar"
       className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${
         isScrolled
-          ? 'py-3 bg-cafe-cream/85 backdrop-blur-md border-b border-cafe-charcoal/10 shadow-md'
-          : 'py-5 bg-cafe-cream/40 backdrop-blur-md border-b border-cafe-charcoal/5'
+          ? 'py-3 bg-white/[0.88] backdrop-blur-xl border-b border-cafe-sage/20 shadow-[0_18px_45px_-30px_rgba(23,42,58,0.45)]'
+          : 'py-4 bg-white/[0.58] backdrop-blur-xl border-b border-white/55'
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -63,14 +63,14 @@ export default function Navbar({
             className="flex items-center space-x-2.5 cursor-pointer group"
             onClick={() => handleLinkClick('home')}
           >
-            <div className="w-9 h-9 rounded-full bg-cafe-charcoal flex items-center justify-center transition-transform duration-500 group-hover:scale-110">
+            <div className="w-9 h-9 rounded-lg bg-cafe-ink flex items-center justify-center transition-transform duration-500 group-hover:scale-105">
               <CafeVistaLogo className="w-8 h-8 filter invert shrink-0" />
             </div>
             <div>
-              <span className="font-serif text-xl tracking-tight font-bold italic text-cafe-charcoal block leading-none font-sans tracking-tight">
+              <span className="font-serif text-xl font-bold italic text-cafe-charcoal block leading-none font-sans">
                 Dikshu's Cafe
               </span>
-              <span className="text-[8px] uppercase tracking-[0.2em] text-cafe-gold block mt-0.5 font-bold">
+              <span className="text-[8px] uppercase tracking-[0.2em] text-cafe-sage block mt-0.5 font-bold">
                 Artisanal Sanctuary
               </span>
             </div>
@@ -82,10 +82,10 @@ export default function Navbar({
               <button
                 key={link.id}
                 onClick={() => handleLinkClick(link.id)}
-                className={`px-4 py-2 font-sans text-xs uppercase tracking-widest rounded-full transition-all duration-300 font-bold ${
+                className={`px-3.5 py-2 font-sans text-xs uppercase tracking-widest rounded-md transition-all duration-300 font-bold ${
                   currentPage === link.id
-                    ? 'bg-cafe-charcoal text-white font-extrabold'
-                    : 'text-cafe-charcoal/70 hover:text-cafe-gold hover:bg-cafe-charcoal/5'
+                    ? 'bg-cafe-ink text-white font-extrabold shadow-sm'
+                    : 'text-cafe-charcoal/70 hover:text-cafe-sage hover:bg-cafe-sage/10'
                 }`}
               >
                 {link.label}
@@ -98,11 +98,12 @@ export default function Navbar({
             {/* Quick Action: Cart */}
             <button
               onClick={onOpenCart}
-              className="relative p-2.5 rounded-full text-cafe-charcoal hover:bg-cafe-gold/15 border border-cafe-charcoal/10 hover:border-cafe-gold/30 transition-all duration-300 group"
+              aria-label="Open cart"
+              className="relative p-2.5 rounded-md text-cafe-charcoal hover:bg-cafe-sage/[0.12] border border-cafe-charcoal/10 hover:border-cafe-sage/35 transition-all duration-300 group"
             >
-              <ShoppingBag className="w-4.5 h-4.5 text-cafe-charcoal group-hover:text-cafe-gold transition-colors" />
+              <ShoppingBag className="w-4.5 h-4.5 text-cafe-charcoal group-hover:text-cafe-sage transition-colors" />
               {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-cafe-gold text-cafe-charcoal text-[9px] font-bold font-mono h-5 w-5 rounded-full flex items-center justify-center animate-pulse shadow-sm border border-cafe-cream">
+                <span className="absolute -top-1 -right-1 bg-cafe-berry text-white text-[9px] font-bold font-mono h-5 w-5 rounded-full flex items-center justify-center animate-pulse shadow-sm border border-cafe-cream">
                   {cartCount}
                 </span>
               )}
@@ -114,7 +115,7 @@ export default function Navbar({
                 {user.role === 'manager' ? (
                   <button
                     onClick={() => handleLinkClick('manager')}
-                    className="flex items-center space-x-1 px-4 py-2 bg-cafe-charcoal text-white hover:bg-cafe-gold hover:text-cafe-charcoal text-xs font-bold uppercase tracking-widest rounded-full transition-all duration-300 cursor-pointer shadow-sm"
+                    className="flex items-center space-x-1 px-4 py-2 bg-cafe-ink text-white hover:bg-cafe-sage text-xs font-bold uppercase tracking-widest rounded-md transition-all duration-300 cursor-pointer shadow-sm"
                   >
                     <LayoutDashboard className="w-3.5 h-3.5" />
                     <span>Manager</span>
@@ -122,9 +123,9 @@ export default function Navbar({
                 ) : (
                   <button
                     onClick={() => handleLinkClick('dashboard')}
-                    className="flex items-center space-x-1 px-3.5 py-2 bg-cafe-charcoal/5 hover:bg-cafe-charcoal/10 border border-cafe-charcoal/10 text-cafe-charcoal text-xs font-bold uppercase tracking-widest rounded-full transition-all duration-300 cursor-pointer"
+                    className="flex items-center space-x-1 px-3.5 py-2 bg-white/70 hover:bg-cafe-sage/10 border border-cafe-sage/20 text-cafe-charcoal text-xs font-bold uppercase tracking-widest rounded-md transition-all duration-300 cursor-pointer"
                   >
-                    <User className="w-3.5 h-3.5 text-cafe-gold" />
+                    <User className="w-3.5 h-3.5 text-cafe-sage" />
                     <span className="max-w-[80px] truncate">{user.name.split(' ')[0]}</span>
                   </button>
                 )}
@@ -146,7 +147,7 @@ export default function Navbar({
                 </button>
                 <button
                   onClick={() => handleLinkClick('booking')}
-                  className="hidden sm:block px-6 py-2.5 bg-cafe-charcoal hover:bg-cafe-gold text-white hover:text-cafe-charcoal text-[10px] uppercase tracking-wider rounded-full font-bold transition-all duration-300"
+                  className="hidden sm:block px-5 py-2.5 bg-cafe-ink hover:bg-cafe-sage text-white text-[10px] uppercase tracking-wider rounded-md font-bold transition-all duration-300"
                 >
                   Reserve Table
                 </button>
@@ -156,7 +157,8 @@ export default function Navbar({
             {/* Mobile Menu Toggle Button */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="md:hidden p-2 rounded-lg text-cafe-charcoal hover:bg-cafe-charcoal/5 transition-all outline-none"
+              aria-label="Toggle mobile menu"
+              className="md:hidden p-2 rounded-md text-cafe-charcoal hover:bg-cafe-sage/10 transition-all outline-none"
             >
               {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
@@ -167,16 +169,16 @@ export default function Navbar({
 
       {/* Mobile Drawer Overlay Slider */}
       {isMobileMenuOpen && (
-        <div id="mobile-menu" className="md:hidden absolute top-full left-0 w-full bg-cafe-cream border-b border-cafe-charcoal/10 shadow-2xl z-40 transition-all duration-300 ease-in overflow-hidden py-4 animate-fadeIn">
+        <div id="mobile-menu" className="md:hidden absolute top-full left-0 w-full bg-white/95 backdrop-blur-xl border-b border-cafe-sage/20 shadow-2xl z-40 transition-all duration-300 ease-in overflow-hidden py-4 animate-fadeIn">
           <div className="px-4 pt-2 pb-4 space-y-1 sm:px-3 flex flex-col items-center">
             {navLinks.map((link) => (
               <button
                 key={link.id}
                 onClick={() => handleLinkClick(link.id)}
-                className={`w-4/5 text-center px-4 py-3 font-sans text-xs uppercase tracking-widest rounded-full transition-all ${
+                className={`w-4/5 text-center px-4 py-3 font-sans text-xs uppercase tracking-widest rounded-md transition-all ${
                   currentPage === link.id
-                    ? 'bg-cafe-charcoal/15 text-cafe-charcoal font-bold'
-                    : 'text-cafe-charcoal/70 hover:text-cafe-gold'
+                    ? 'bg-cafe-sage/15 text-cafe-charcoal font-bold'
+                    : 'text-cafe-charcoal/70 hover:text-cafe-sage'
                 }`}
               >
                 {link.label}

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { DollarSign, LayoutDashboard, Database, UserCheck, AlertOctagon, MailOpen, ClipboardList, BookOpen, Clock } from 'lucide-react';
 import { UserRole, Booking, Order } from '../types';
 import GlassCard from './GlassCard';
+import SecureCopyButton from './SecureCopyButton';
 
 interface ContactMessage {
   id: string;
@@ -39,8 +40,8 @@ export default function ManagerView({
           <AlertOctagon className="w-12 h-12 text-red-500 mx-auto" />
           <h2 className="font-serif text-lg font-bold text-cafe-charcoal uppercase">Access Denied</h2>
           <p className="text-xs text-cafe-charcoal/60 leading-relaxed">
-            Manager panel access is restricted to verified administrative personnel. Please log in with credentials: <br />
-            <strong className="text-cafe-smoky font-mono font-bold block mt-1">manager@cafevista.com</strong>
+            Manager panel access is restricted to verified administrative personnel. Please log in with the administrator account: <br />
+            <strong className="text-cafe-smoky font-mono font-bold block mt-1">omkardsupe143644@gmail.com</strong>
           </p>
           <button
             onClick={() => onNavigate('login')}
@@ -59,11 +60,18 @@ export default function ManagerView({
   const pendingOrders = orders.filter(o => o.status !== 'completed' && o.status !== 'cancelled');
   const pendingReservations = bookings.filter(b => b.status === 'pending');
 
-  const staffSchedules = [
+  const legacyStaffSchedules = [
     { name: 'Chloe Laurent', role: 'Head Barista', shift: '06:30 — 14:30', tables: 'Espresso Bar' },
     { name: 'Jacques Martin', role: 'Pastry Chef', shift: '05:00 — 13:00', tables: 'Kitchen Deck A' },
     { name: 'Isabella Vance', role: 'Dine-In Lead Hosp.', shift: '12:00 — 20:00', tables: 'Garden Alcove' },
     { name: 'David Mercer', role: 'Evening Supervisor', shift: '14:30 — 22:30', tables: 'All Seating' }
+  ];
+
+  const staffSchedules = [
+    { name: 'Chloe Laurent', role: 'Head Barista', shift: '06:30 - 14:30', tables: 'Espresso Bar' },
+    { name: 'Jacques Martin', role: 'Pastry Chef', shift: '05:00 - 13:00', tables: 'Kitchen Deck A' },
+    { name: 'Isabella Vance', role: 'Dine-In Lead Hosp.', shift: '12:00 - 20:00', tables: 'Garden Alcove' },
+    { name: 'David Mercer', role: 'Evening Supervisor', shift: '14:30 - 22:30', tables: 'All Seating' }
   ];
 
   return (
@@ -178,11 +186,14 @@ export default function ManagerView({
                       className="bg-white/70 border border-[#deb887]/25 rounded-2xl p-5 space-y-4 shadow-sm"
                     >
                       <div className="flex justify-between items-center border-b border-cafe-smoky/5 pb-3">
-                        <div>
-                          <span className="font-mono text-xs font-bold text-cafe-charcoal uppercase">TICKET ID: {ord.id}</span>
-                          <span className="text-[10px] text-cafe-charcoal/50 block font-sans">
-                            CUST: {ord.customerName} | {ord.customerPhone}
-                          </span>
+                        <div className="flex items-start gap-2">
+                          <SecureCopyButton value={ord.id} label={`order ${ord.id}`} />
+                          <div>
+                            <span className="font-mono text-xs font-bold text-cafe-charcoal uppercase">TICKET ID: {ord.id}</span>
+                            <span className="text-[10px] text-cafe-charcoal/50 block font-sans">
+                              CUST: {ord.customerName} | {ord.customerPhone}
+                            </span>
+                          </div>
                         </div>
                         <div className="flex items-center space-x-2 text-[10px] uppercase font-mono tracking-wider font-bold">
                           <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">PAID</span>
@@ -266,13 +277,16 @@ export default function ManagerView({
                       className="bg-white/70 border border-[#deb887]/25 rounded-2xl p-5 space-y-4 shadow-sm"
                     >
                       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-cafe-smoky/5 pb-2.5">
-                        <div>
-                          <strong className="font-serif text-sm font-bold text-cafe-smoky uppercase block">
-                            {bk.customerName}
-                          </strong>
-                          <span className="text-[10px] text-cafe-charcoal/50 font-mono block mt-0.5">
-                            CODE REF ID: {bk.id} | EMAIL: {bk.customerEmail}
-                          </span>
+                        <div className="flex items-start gap-2">
+                          <SecureCopyButton value={bk.id} label={`booking ${bk.id}`} />
+                          <div>
+                            <strong className="font-serif text-sm font-bold text-cafe-smoky uppercase block">
+                              {bk.customerName}
+                            </strong>
+                            <span className="text-[10px] text-cafe-charcoal/50 font-mono block mt-0.5">
+                              CODE REF ID: {bk.id} | EMAIL: {bk.customerEmail}
+                            </span>
+                          </div>
                         </div>
                         <span className={`px-2 py-0.5 rounded text-[9px] uppercase font-mono tracking-wider font-bold ${
                           bk.status === 'approved' ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' : bk.status === 'cancelled' ? 'bg-red-500/10 text-red-600' : 'bg-yellow-500/10 text-yellow-600'
@@ -355,7 +369,10 @@ export default function ManagerView({
                           <strong className="font-serif text-xs font-bold text-cafe-smoky uppercase block font-sans">
                             FROM: {msg.name} ({msg.email})
                           </strong>
-                          <span className="text-[10px] font-mono text-[#a38059] block mt-0.5">CODE REF: {msg.id}</span>
+                          <span className="text-[10px] font-mono text-[#a38059] mt-0.5 flex items-center gap-2">
+                            CODE REF: {msg.id}
+                            <SecureCopyButton value={msg.id} label={`support message ${msg.id}`} />
+                          </span>
                         </div>
                         <span className="text-[10px] text-cafe-charcoal/40 font-mono">{msg.date}</span>
                       </div>

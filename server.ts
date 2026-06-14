@@ -7,6 +7,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
+import validator from 'validator';
 import { eq, and, sql, inArray } from 'drizzle-orm';
 
 import { db } from './src/db/index.ts';
@@ -15,6 +16,8 @@ import { users, menuItems, addresses, cartItems, orders, orderItems, bookings } 
 import { MenuItem, Booking, Order, User, UserRole, DiningType, BookingStatus, OrderStatus } from './src/types.ts';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'cafe_vista_secret_gold_2026';
+const SESSION_MAX_AGE_MS = 2 * 60 * 60 * 1000;
+const SESSION_EXPIRES_IN = '2h';
 
 // ---------------------------------------------------------
 // PRODUCTION EMAIL INFRASTRUCTURE (Secure Transport)
@@ -47,15 +50,70 @@ const sendEmail = async (options: { to: string; subject: string; html: string })
 // ---------------------------------------------------------
 
 // Form validation helpers
-const isValidEmail = (email: string) => {
-  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return re.test(email);
+const isPlainString = (value: unknown): value is string => typeof value === 'string';
+
+const cleanString = (value: string) => value.trim();
+
+const isValidEmail = (email: string) => validator.isEmail(cleanString(email), { allow_utf8_local_part: false });
+
+const normalizePhoneForValidation = (phone: string) => {
+  const trimmed = cleanString(phone);
+  const digits = Array.from(trimmed).filter(char => char >= '0' && char <= '9').join('');
+  return trimmed.startsWith('+') ? `+${digits}` : digits;
 };
 
-const isValidPhone = (phone: string) => {
-  const re = /^\+?[0-9\s\-()]{7,20}$/;
-  return re.test(phone);
+const isValidPhone = (phone: string) => validator.isMobilePhone(normalizePhoneForValidation(phone), 'any', { strictMode: false });
+
+const isValidPasswordLength = (password: string) => password.length >= 6 && password.length <= 128;
+
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+const sessionCookieOptions = () => ({
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'strict' as const,
+  maxAge: SESSION_MAX_AGE_MS
+});
+
+const clearSessionCookie = (res: express.Response) => {
+  res.clearCookie('session_token', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict' as const
+  });
 };
+
+const createSessionToken = (user: { id: number; email: string; name: string; role: string }) =>
+  jwt.sign(
+    { id: user.id, email: user.email, name: user.name, role: user.role },
+    JWT_SECRET,
+    { expiresIn: SESSION_EXPIRES_IN }
+  );
+
+const parseRecordId = (value: unknown, prefix: string) => {
+  if (typeof value === 'number' && Number.isInteger(value) && value > 0) {
+    return value;
+  }
+  if (!isPlainString(value)) {
+    return null;
+  }
+  const cleaned = value.startsWith(prefix) ? value.slice(prefix.length) : value;
+  const parsed = Number.parseInt(cleaned, 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+};
+
+const allowedBookingStatuses = new Set(['approved', 'cancelled']);
+const allowedOrderStatuses = new Set(['preparing', 'ready', 'completed']);
+const allowedTablePreferences = new Set(['window', 'alcove', 'garden', 'bar', 'standard']);
+const ADMIN_SEED_EMAIL = 'omkardsupe143644@gmail.com';
+const ADMIN_SEED_NAME = 'Dikshu';
+const ADMIN_SEED_PASSWORD_HASH = '$2b$12$UUR0CYMHgsllMKBNMi1a2ug6s68hvXOo.D/kTv1ENG35QQlfB4J0K';
 
 // Seed menu helper to ensure the user gets a polished storefront immediately
 async function seedDatabaseIfNeeded() {
@@ -167,26 +225,52 @@ async function seedDatabaseIfNeeded() {
       console.log(`Database already holds ${existingCount.length} menu items`);
     }
 
-    // Seed default users if they don't exist
-    const defaultEmails = ['elena@cafevista.com', 'manager@cafevista.com', 'omkardsupe143644@gmail.com'];
-    for (const emailToSeed of defaultEmails) {
-      const [existingUser] = await db.select().from(users).where(eq(sql`LOWER(${users.email})`, emailToSeed.toLowerCase()));
-      if (!existingUser) {
-        console.log(`Seeding custom account for ${emailToSeed}...`);
-        const passwordToHash = emailToSeed === 'manager@cafevista.com' ? 'admin1234' : 'test1234';
-        const salt = bcrypt.genSaltSync(12);
-        const hash = bcrypt.hashSync(passwordToHash, salt);
-        const role = (emailToSeed === 'manager@cafevista.com' || emailToSeed === 'omkardsupe143644@gmail.com') ? 'ADMIN' : 'CUSTOMER';
-        const name = emailToSeed === 'omkardsupe143644@gmail.com' ? 'Omkar Supe' : (emailToSeed === 'manager@cafevista.com' ? 'Cafe Manager' : 'Elena Rostova');
-        await db.insert(users).values({
-          email: emailToSeed.toLowerCase(),
-          name,
-          phone: '+91 98765 43210',
-          passwordHash: hash,
-          role
-        });
-        console.log(`Successfully seeded ${emailToSeed} as ${role}`);
+    const seedUsers = [
+      {
+        email: 'elena@cafevista.com',
+        name: 'Elena Rostova',
+        phone: '+91 98765 43210',
+        passwordHash: bcrypt.hashSync('test1234', 12),
+        role: 'CUSTOMER',
+        forceReset: false
+      },
+      {
+        email: ADMIN_SEED_EMAIL,
+        name: ADMIN_SEED_NAME,
+        phone: '+91 98765 43210',
+        passwordHash: ADMIN_SEED_PASSWORD_HASH,
+        role: 'ADMIN',
+        forceReset: true
       }
+    ];
+
+    for (const seedUser of seedUsers) {
+      const normalizedSeedEmail = seedUser.email.toLowerCase();
+      const [existingUser] = await db.select().from(users).where(eq(sql`LOWER(${users.email})`, normalizedSeedEmail));
+      if (existingUser) {
+        if (seedUser.forceReset) {
+          await db.update(users)
+            .set({
+              name: seedUser.name,
+              phone: seedUser.phone,
+              passwordHash: seedUser.passwordHash,
+              role: seedUser.role
+            })
+            .where(eq(users.id, existingUser.id));
+          console.log(`Reset admin account for ${normalizedSeedEmail}`);
+        }
+        continue;
+      }
+
+      console.log(`Seeding custom account for ${normalizedSeedEmail}...`);
+      await db.insert(users).values({
+        email: normalizedSeedEmail,
+        name: seedUser.name,
+        phone: seedUser.phone,
+        passwordHash: seedUser.passwordHash,
+        role: seedUser.role
+      });
+      console.log(`Successfully seeded ${normalizedSeedEmail} as ${seedUser.role}`);
     }
   } catch (err) {
     console.warn('Silent seeding pass warning:', err);
@@ -195,10 +279,23 @@ async function seedDatabaseIfNeeded() {
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT || 3000);
 
   // Middleware setups
-  app.use(express.json());
+  if (process.env.NODE_ENV === 'production') {
+    app.set('trust proxy', 1);
+    app.use((req, res, next) => {
+      res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+      const forwardedProto = req.headers['x-forwarded-proto'];
+      const proto = Array.isArray(forwardedProto) ? forwardedProto[0] : forwardedProto;
+      if (proto && proto.split(',')[0].trim() !== 'https') {
+        return res.redirect(308, `https://${req.headers.host}${req.originalUrl}`);
+      }
+      next();
+    });
+  }
+
+  app.use(express.json({ limit: '100kb' }));
   app.use(cookieParser());
 
   // Connect & Seed Database
@@ -265,7 +362,7 @@ async function startServer() {
       // Fetch user from actual DB to ensure freshness and prevent tampered state IDs
       const [matchedUser] = await db.select().from(users).where(eq(users.id, decoded.id));
       if (!matchedUser) {
-        res.clearCookie('session_token');
+        clearSessionCookie(res);
         return res.status(401).json({ success: false, error: 'Unauthorized', message: 'Active profile not registered' });
       }
 
@@ -278,7 +375,7 @@ async function startServer() {
       };
       next();
     } catch (err) {
-      res.clearCookie('session_token');
+      clearSessionCookie(res);
       return res.status(401).json({ success: false, error: 'Unauthorized', message: 'Authentication session expired' });
     }
   };
@@ -336,7 +433,7 @@ async function startServer() {
         }
       });
     } catch {
-      res.clearCookie('session_token');
+      clearSessionCookie(res);
       res.json({ success: true, user: null });
     }
   });
@@ -346,13 +443,17 @@ async function startServer() {
     const { email, password } = req.body;
     
     // server side form validation
-    if (!email || !password || !isValidEmail(email)) {
+    if (!isPlainString(email) || !isPlainString(password) || !isValidEmail(email)) {
       return res.status(400).json({ success: false, message: 'Invalid or incomplete email and password parameters' });
     }
+    if (password.length > 128) {
+      return res.status(400).json({ success: false, message: 'Password must be 128 characters or fewer' });
+    }
+    const normalizedEmail = cleanString(email).toLowerCase();
 
     try {
       // Find user in PostgreSQL
-      const [matchedUser] = await db.select().from(users).where(eq(sql`LOWER(${users.email})`, email.toLowerCase()));
+      const [matchedUser] = await db.select().from(users).where(eq(sql`LOWER(${users.email})`, normalizedEmail));
       
       // Generic error message used to prevent email enumeration attacks
       if (!matchedUser) {
@@ -365,20 +466,11 @@ async function startServer() {
         return res.status(401).json({ success: false, message: 'Invalid email or password' });
       }
 
-      // Generate Session Token
-      const token = jwt.sign(
-        { id: matchedUser.id, email: matchedUser.email, name: matchedUser.name, role: matchedUser.role },
-        JWT_SECRET,
-        { expiresIn: '7d' }
-      );
+      // Generate short-lived session token
+      const token = createSessionToken(matchedUser);
 
       // Issue Secure HttpOnly SameSite Cookie
-      res.cookie('session_token', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 7 * 24 * 3600 * 1000 // 7 days
-      });
+      res.cookie('session_token', token, sessionCookieOptions());
 
       res.json({
         success: true,
@@ -404,22 +496,25 @@ async function startServer() {
     const { name, email, phone, password } = req.body;
 
     // Server-side Form validations
-    if (!name || name.trim() === '') {
+    if (!isPlainString(name) || cleanString(name) === '') {
       return res.status(400).json({ success: false, message: 'Customer name is required' });
     }
-    if (!email || !isValidEmail(email)) {
+    if (!isPlainString(email) || !isValidEmail(email)) {
       return res.status(400).json({ success: false, message: 'A valid email address is required' });
     }
-    if (!phone || !isValidPhone(phone)) {
+    if (!isPlainString(phone) || !isValidPhone(phone)) {
       return res.status(400).json({ success: false, message: 'A valid phone number is required (at least 7 digits)' });
     }
-    if (!password || password.length < 6) {
-      return res.status(400).json({ success: false, message: 'Security password must have at least 6 characters' });
+    if (!isPlainString(password) || !isValidPasswordLength(password)) {
+      return res.status(400).json({ success: false, message: 'Security password must be between 6 and 128 characters' });
     }
+    const normalizedName = cleanString(name);
+    const normalizedEmail = cleanString(email).toLowerCase();
+    const normalizedPhone = cleanString(phone);
 
     try {
       // Check existing email to prevent double accounts
-      const [existing] = await db.select().from(users).where(eq(sql`LOWER(${users.email})`, email.toLowerCase()));
+      const [existing] = await db.select().from(users).where(eq(sql`LOWER(${users.email})`, normalizedEmail));
       if (existing) {
         return res.status(400).json({ success: false, message: 'An account with this email already exists. Please sign in.' });
       }
@@ -429,25 +524,25 @@ async function startServer() {
       const salt = bcrypt.genSaltSync(12);
       const hash = bcrypt.hashSync(password, salt);
 
-      otpStore.set(email.toLowerCase(), {
+      otpStore.set(normalizedEmail, {
         code: otp,
         expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes
-        name,
-        phone,
+        name: normalizedName,
+        phone: normalizedPhone,
         passHash: hash
       });
 
       // Send Production Email
       await sendEmail({
-        to: email,
+        to: normalizedEmail,
         subject: 'Verify your Dikshu\'s Cafe Account',
         html: `
           <div style="font-family: serif; padding: 20px; color: #1A1816; background-color: #FEFAF4;">
             <h2 style="text-transform: uppercase; letter-spacing: 2px; border-bottom: 1px solid #D4AF37; padding-bottom: 10px;">Entrance Security</h2>
-            <p>Welcome to <b>Dikshu's Cafe</b>, ${name}.</p>
+            <p>Welcome to <b>Dikshu's Cafe</b>, ${escapeHtml(normalizedName)}.</p>
             <p>To finalize your artisanal sanctuary registration, please use the following verification key:</p>
             <div style="font-size: 24px; font-weight: bold; font-family: monospace; padding: 15px; background: #FFF; border: 1px dashed #D4AF37; display: inline-block; letter-spacing: 5px;">
-              ${otp}
+              ${escapeHtml(otp)}
             </div>
             <p style="font-size: 10px; color: #8C7B6B; margin-top: 20px;">This key expires in 10 minutes. If you did not request this, please ignore this email.</p>
           </div>
@@ -468,50 +563,43 @@ async function startServer() {
   // Auth: Verify OTP and save registration to Postgres
   app.post('/api/auth/verify-otp', async (req, res) => {
     const { email, otp } = req.body;
-    if (!email || !otp) {
+    if (!isPlainString(email) || !isPlainString(otp) || !isValidEmail(email)) {
       return res.status(400).json({ success: false, message: 'Target email and verification OTP are mandatory.' });
     }
+    const normalizedEmail = cleanString(email).toLowerCase();
+    const normalizedOtp = cleanString(otp);
 
-    const sessionData = otpStore.get(email.toLowerCase());
+    const sessionData = otpStore.get(normalizedEmail);
     if (!sessionData) {
       return res.status(404).json({ success: false, message: 'No pending verification session found. Please resubmit signup.' });
     }
 
     if (Date.now() > sessionData.expiresAt) {
-      otpStore.delete(email.toLowerCase());
+      otpStore.delete(normalizedEmail);
       return res.status(408).json({ success: false, message: 'Validation session has expired. Please try again.' });
     }
 
     // Secure verification (Disabled test bypass)
-    if (sessionData.code !== otp.trim()) {
+    if (sessionData.code !== normalizedOtp) {
       return res.status(400).json({ success: false, message: 'Incorrect verification key. Please check and try again.' });
     }
 
     try {
-      const designRole = (email.toLowerCase() === 'manager@cafevista.com' || email.toLowerCase() === 'omkardsupe143644@gmail.com') ? 'ADMIN' : 'CUSTOMER';
+      const designRole = normalizedEmail === ADMIN_SEED_EMAIL ? 'ADMIN' : 'CUSTOMER';
 
       const [insertedUser] = await db.insert(users).values({
         name: sessionData.name,
-        email: email.toLowerCase(),
+        email: normalizedEmail,
         phone: sessionData.phone,
         passwordHash: sessionData.passHash,
         role: designRole
       }).returning();
 
-      otpStore.delete(email.toLowerCase());
+      otpStore.delete(normalizedEmail);
 
-      const token = jwt.sign(
-        { id: insertedUser.id, email: insertedUser.email, name: insertedUser.name, role: insertedUser.role },
-        JWT_SECRET,
-        { expiresIn: '7d' }
-      );
+      const token = createSessionToken(insertedUser);
 
-      res.cookie('session_token', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 7 * 24 * 3600 * 1000
-      });
+      res.cookie('session_token', token, sessionCookieOptions());
 
       res.json({
         success: true,
@@ -535,11 +623,12 @@ async function startServer() {
   // Auth: Resend OTP
   app.post('/api/auth/resend-otp', async (req, res) => {
     const { email } = req.body;
-    if (!email) {
+    if (!isPlainString(email) || !isValidEmail(email)) {
       return res.status(400).json({ success: false, message: 'Email address parameter is required' });
     }
+    const normalizedEmail = cleanString(email).toLowerCase();
 
-    const sessionData = otpStore.get(email.toLowerCase());
+    const sessionData = otpStore.get(normalizedEmail);
     if (!sessionData) {
       return res.status(404).json({ success: false, message: 'No active registration session found.' });
     }
@@ -547,12 +636,12 @@ async function startServer() {
     const newOtp = Math.floor(1000 + Math.random() * 9000).toString();
     sessionData.code = newOtp;
     sessionData.expiresAt = Date.now() + 10 * 60 * 1000;
-    otpStore.set(email.toLowerCase(), sessionData);
+    otpStore.set(normalizedEmail, sessionData);
 
     await sendEmail({
-      to: email,
+      to: normalizedEmail,
       subject: 'New Verification Key - Dikshu\'s Cafe',
-      html: `<p>Your new verification key is: <b>${newOtp}</b></p>`
+      html: `<p>Your new verification key is: <b>${escapeHtml(newOtp)}</b></p>`
     });
 
     res.json({
@@ -564,7 +653,7 @@ async function startServer() {
   // Auth: Forgot-Password route
   app.post('/api/auth/forgot-password', apiRateLimiter({ windowMs: 60000, max: 5, message: 'Request limit met. Please rest for 60 seconds.' }), async (req, res) => {
     const { email } = req.body;
-    if (!email || !isValidEmail(email)) {
+    if (!isPlainString(email) || !isValidEmail(email)) {
       return res.status(400).json({ success: false, message: 'A valid email address is required.' });
     }
 
@@ -577,7 +666,7 @@ async function startServer() {
 
   // Auth: Log Out
   app.post('/api/auth/logout', (req, res) => {
-    res.clearCookie('session_token');
+    clearSessionCookie(res);
     res.json({ success: true, message: 'Logged out successfully' });
   });
 
@@ -639,31 +728,52 @@ async function startServer() {
   app.post('/api/bookings', apiRateLimiter({ windowMs: 60000, max: 4, message: 'Reservation capacity checked; please wait a minute before booking.' }), async (req: AuthenticatedRequest, res) => {
     const { customerName, customerEmail, customerPhone, date, time, guestsCount, tablePreference, occasion, specialNotes, userId } = req.body;
 
-    if (!customerName || !customerEmail || !customerPhone || !date || !time || !guestsCount) {
+    if (!isPlainString(customerName) || !isPlainString(customerEmail) || !isPlainString(customerPhone) || !isPlainString(date) || !isPlainString(time) || guestsCount === undefined) {
       return res.status(400).json({ success: false, message: 'Please submit all required reservation options.' });
     }
+    if (!isValidEmail(customerEmail) || !isValidPhone(customerPhone)) {
+      return res.status(400).json({ success: false, message: 'Reservation requires valid email and phone details.' });
+    }
+    if ((tablePreference !== undefined && !isPlainString(tablePreference)) || (occasion !== undefined && !isPlainString(occasion)) || (specialNotes !== undefined && !isPlainString(specialNotes))) {
+      return res.status(400).json({ success: false, message: 'Reservation text fields must be plain strings.' });
+    }
+
+    const parsedGuests = Number.parseInt(String(guestsCount), 10);
+    if (!Number.isInteger(parsedGuests) || parsedGuests < 1 || parsedGuests > 12) {
+      return res.status(400).json({ success: false, message: 'Guests count must be between 1 and 12.' });
+    }
+
+    const normalizedCustomerName = cleanString(customerName);
+    const normalizedCustomerEmail = cleanString(customerEmail).toLowerCase();
+    const normalizedCustomerPhone = cleanString(customerPhone);
+    const normalizedTablePreference = tablePreference && allowedTablePreferences.has(cleanString(tablePreference))
+      ? cleanString(tablePreference)
+      : 'standard';
 
     try {
       // Find associated user by verified email if userId is missing, or use active session
       let boundUserId = null;
-      if (userId) {
-        boundUserId = parseInt(userId);
+      if (userId !== undefined && userId !== null && userId !== '') {
+        boundUserId = parseRecordId(userId, '');
+        if (!boundUserId) {
+          return res.status(400).json({ success: false, message: 'Invalid reservation user identifier.' });
+        }
       } else {
-        const [userCheck] = await db.select().from(users).where(eq(users.email, customerEmail.toLowerCase()));
+        const [userCheck] = await db.select().from(users).where(eq(users.email, normalizedCustomerEmail));
         if (userCheck) boundUserId = userCheck.id;
       }
 
       await db.insert(bookings).values({
         userId: boundUserId,
-        customerName,
-        customerEmail: customerEmail.toLowerCase(),
-        customerPhone,
-        date,
-        time,
-        guestsCount: parseInt(guestsCount),
-        tablePreference: tablePreference || 'standard',
-        occasion,
-        specialNotes,
+        customerName: normalizedCustomerName,
+        customerEmail: normalizedCustomerEmail,
+        customerPhone: normalizedCustomerPhone,
+        date: cleanString(date),
+        time: cleanString(time),
+        guestsCount: parsedGuests,
+        tablePreference: normalizedTablePreference,
+        occasion: occasion ? cleanString(occasion) : undefined,
+        specialNotes: specialNotes ? cleanString(specialNotes) : undefined,
         status: 'approved'
       });
 
@@ -714,14 +824,14 @@ async function startServer() {
 
   // Bookings: Update status state (Manager Action)
   app.put('/api/bookings/:id', requireAuth, requireAdmin, async (req, res) => {
-    let cleanId = req.params.id;
-    if (cleanId.startsWith('bk_')) {
-      cleanId = cleanId.replace('bk_', '');
-    }
     const { status } = req.body;
+    const cleanId = parseRecordId(req.params.id, 'bk_');
+    if (!cleanId || !isPlainString(status) || !allowedBookingStatuses.has(status)) {
+      return res.status(400).json({ success: false, message: 'Invalid booking status update parameters' });
+    }
 
     try {
-      await db.update(bookings).set({ status }).where(eq(bookings.id, parseInt(cleanId)));
+      await db.update(bookings).set({ status }).where(eq(bookings.id, cleanId));
       res.json({ success: true, message: 'Booking status updated successfully' });
     } catch (err: any) {
       console.error('Update booking failed:', err.message);
@@ -731,14 +841,14 @@ async function startServer() {
 
   // Admin/Manager Booking route patch support
   app.patch('/api/bookings/:id', requireAuth, requireAdmin, async (req, res) => {
-    let cleanId = req.params.id;
-    if (cleanId.startsWith('bk_')) {
-      cleanId = cleanId.replace('bk_', '');
-    }
     const { status } = req.body;
+    const cleanId = parseRecordId(req.params.id, 'bk_');
+    if (!cleanId || !isPlainString(status) || !allowedBookingStatuses.has(status)) {
+      return res.status(400).json({ success: false, message: 'Invalid booking status update parameters' });
+    }
 
     try {
-      await db.update(bookings).set({ status }).where(eq(bookings.id, parseInt(cleanId)));
+      await db.update(bookings).set({ status }).where(eq(bookings.id, cleanId));
       res.json({ success: true, message: 'Booking status updated' });
     } catch (err: any) {
       console.error('Update booking failed:', err.message);
@@ -750,12 +860,36 @@ async function startServer() {
   app.post('/api/orders', requireAuth, apiRateLimiter({ windowMs: 60000, max: 4, message: 'Order submission capacity check. Please rest for 60 seconds.' }), async (req: AuthenticatedRequest, res) => {
     const { customerName, customerEmail, customerPhone, items, diningType, couponCode } = req.body;
 
-    if (!items || items.length === 0) {
+    if (!isPlainString(customerName) || !isPlainString(customerEmail) || !isPlainString(customerPhone) || !isValidEmail(customerEmail) || !isValidPhone(customerPhone)) {
+      return res.status(400).json({ success: false, message: 'Order requires valid customer contact details.' });
+    }
+    if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ success: false, message: 'Please select items to place order.' });
     }
+    if ((diningType !== undefined && !['dine-in', 'pickup'].includes(diningType)) || (couponCode !== undefined && !isPlainString(couponCode))) {
+      return res.status(400).json({ success: false, message: 'Invalid order preference parameters.' });
+    }
+
+    const normalizedItems = [];
+    for (const item of items) {
+      if (!item || typeof item !== 'object' || !isPlainString(item.menuItemId)) {
+        return res.status(400).json({ success: false, message: 'Order items must include valid menu item identifiers.' });
+      }
+      const quantity = Number.parseInt(String(item.quantity), 10);
+      if (!Number.isInteger(quantity) || quantity < 1 || quantity > 20) {
+        return res.status(400).json({ success: false, message: 'Order item quantities must be between 1 and 20.' });
+      }
+      normalizedItems.push({ menuItemId: cleanString(item.menuItemId), quantity });
+    }
+
+    const normalizedCustomerName = cleanString(customerName);
+    const normalizedCustomerEmail = cleanString(customerEmail).toLowerCase();
+    const normalizedCustomerPhone = cleanString(customerPhone);
+    const normalizedDiningType = diningType === 'dine-in' ? 'dine-in' : 'pickup';
+    const normalizedCouponCode = couponCode ? cleanString(couponCode).toUpperCase() : '';
 
     try {
-      const itemIds = items.map((i: any) => i.menuItemId);
+      const itemIds = normalizedItems.map(i => i.menuItemId);
       
       // Calculate item prices from the database, not from frontend values!
       const dbItems = await db.select().from(menuItems).where(inArray(menuItems.id, itemIds));
@@ -763,10 +897,10 @@ async function startServer() {
       let dbSubtotal = 0;
       const verifiedItems: any[] = [];
 
-      for (const orderItem of items) {
+      for (const orderItem of normalizedItems) {
         const itemRecord = dbItems.find(dbI => dbI.id === orderItem.menuItemId);
         if (!itemRecord) {
-          return res.status(404).json({ success: false, message: `Selected item ${orderItem.name || orderItem.menuItemId} is not currently available.` });
+          return res.status(404).json({ success: false, message: `Selected item ${orderItem.menuItemId} is not currently available.` });
         }
         
         const priceAtPurchase = itemRecord.price;
@@ -781,9 +915,9 @@ async function startServer() {
 
       // Compute discounts securely on server
       let discountValue = 0;
-      if (couponCode === 'VISTA20' && dbSubtotal >= 25.0) {
+      if (normalizedCouponCode === 'VISTA20' && dbSubtotal >= 25.0) {
         discountValue = Number((dbSubtotal * 0.2).toFixed(2));
-      } else if (couponCode === 'WELCOME10') {
+      } else if (normalizedCouponCode === 'WELCOME10') {
         discountValue = Number((dbSubtotal * 0.1).toFixed(2));
       }
 
@@ -811,13 +945,13 @@ async function startServer() {
       // Insert Order record inside Postgres
       const [newOrder] = await db.insert(orders).values({
         userId: req.user!.id,
-        customerName,
-        customerEmail: customerEmail.toLowerCase(),
-        customerPhone,
+        customerName: normalizedCustomerName,
+        customerEmail: normalizedCustomerEmail,
+        customerPhone: normalizedCustomerPhone,
         subtotal: dbSubtotal,
         discount: discountValue,
         total: totalValue,
-        diningType: diningType || 'pickup',
+        diningType: normalizedDiningType,
         status: 'pending',
         paymentStatus: 'unpaid',
         razorpayOrderId: rzpOrderId
@@ -850,7 +984,7 @@ async function startServer() {
           paymentStatus: newOrder.paymentStatus,
           createdAt: newOrder.createdAt.toISOString()
         },
-        razorpayOrderId: rzpTestOrderId,
+        razorpayOrderId: rzpOrderId,
         razorpayKey: process.env.RAZORPAY_KEY_ID || 'rzp_test_placeholder_vista'
       });
     } catch (err: any) {
@@ -863,12 +997,8 @@ async function startServer() {
   app.post('/api/payments/verify', requireAuth, apiRateLimiter({ windowMs: 60000, max: 4, message: 'Payment verify rate capacity check.' }), async (req: AuthenticatedRequest, res) => {
     const { orderId, razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
 
-    let cleanOrderId = orderId;
-    if (typeof orderId === 'string' && orderId.startsWith('o-')) {
-      cleanOrderId = parseInt(orderId.replace('o-', ''));
-    }
-
-    if (!cleanOrderId || !razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
+    const cleanOrderId = parseRecordId(orderId, 'o-');
+    if (!cleanOrderId || !isPlainString(razorpayOrderId) || !isPlainString(razorpayPaymentId) || !isPlainString(razorpaySignature)) {
       return res.status(400).json({ success: false, message: 'Incomplete transaction parameters' });
     }
 
@@ -887,17 +1017,17 @@ async function startServer() {
       const secret = process.env.RAZORPAY_KEY_SECRET || 'rzp_secret_placeholder';
       const computedSignature = crypto
         .createHmac('sha256', secret)
-        .update(razorpayOrderId + '|' + razorpayPaymentId)
+        .update(cleanString(razorpayOrderId) + '|' + cleanString(razorpayPaymentId))
         .digest('hex');
 
-      const isSignatureValid = (computedSignature === razorpaySignature);
+      const isSignatureValid = (computedSignature === cleanString(razorpaySignature));
       if (!isSignatureValid) {
         return res.status(400).json({ success: false, message: 'Falsified signature match rejected' });
       }
 
       // 3. Update orders table details securely
       await db.update(orders)
-        .set({ paymentStatus: 'paid', razorpayPaymentId, status: 'preparing' })
+        .set({ paymentStatus: 'paid', razorpayPaymentId: cleanString(razorpayPaymentId), status: 'preparing' })
         .where(eq(orders.id, orderRecord.id));
 
       res.json({
@@ -913,9 +1043,9 @@ async function startServer() {
   // Payments: Create Stripe Checkout Session
   app.post('/api/payments/stripe/create-session', requireAuth, async (req: AuthenticatedRequest, res) => {
     const { orderId } = req.body;
-    let cleanOrderId = orderId;
-    if (typeof orderId === 'string' && orderId.startsWith('o-')) {
-      cleanOrderId = parseInt(orderId.replace('o-', ''));
+    const cleanOrderId = parseRecordId(orderId, 'o-');
+    if (!cleanOrderId) {
+      return res.status(400).json({ success: false, message: 'Valid order ID is required' });
     }
 
     try {
@@ -948,9 +1078,9 @@ async function startServer() {
   // Payments: Fulfill Stripe Session (simulated for client browser preview)
   app.post('/api/payments/stripe/verify', requireAuth, async (req: AuthenticatedRequest, res) => {
     const { orderId, sessionId } = req.body;
-    let cleanOrderId = orderId;
-    if (typeof orderId === 'string' && orderId.startsWith('o-')) {
-      cleanOrderId = parseInt(orderId.replace('o-', ''));
+    const cleanOrderId = parseRecordId(orderId, 'o-');
+    if (!cleanOrderId || !isPlainString(sessionId)) {
+      return res.status(400).json({ success: false, message: 'Valid order and session identifiers are required' });
     }
 
     try {
@@ -1027,14 +1157,14 @@ async function startServer() {
 
   // Orders: Update order status (Manager action)
   app.put('/api/orders/:id', requireAuth, requireAdmin, async (req, res) => {
-    let cleanId = req.params.id;
-    if (cleanId.startsWith('o-')) {
-      cleanId = cleanId.replace('o-', '');
-    }
     const { status } = req.body;
+    const cleanId = parseRecordId(req.params.id, 'o-');
+    if (!cleanId || !isPlainString(status) || !allowedOrderStatuses.has(status)) {
+      return res.status(400).json({ success: false, message: 'Invalid order status update parameters' });
+    }
 
     try {
-      await db.update(orders).set({ status }).where(eq(orders.id, parseInt(cleanId)));
+      await db.update(orders).set({ status }).where(eq(orders.id, cleanId));
       res.json({ success: true, message: 'Order status updated successfully' });
     } catch (err: any) {
       console.error('Update order state failed:', err.message);
@@ -1043,14 +1173,14 @@ async function startServer() {
   });
 
   app.patch('/api/orders/:id', requireAuth, requireAdmin, async (req, res) => {
-    let cleanId = req.params.id;
-    if (cleanId.startsWith('o-')) {
-      cleanId = cleanId.replace('o-', '');
-    }
     const { status } = req.body;
+    const cleanId = parseRecordId(req.params.id, 'o-');
+    if (!cleanId || !isPlainString(status) || !allowedOrderStatuses.has(status)) {
+      return res.status(400).json({ success: false, message: 'Invalid order status update parameters' });
+    }
 
     try {
-      await db.update(orders).set({ status }).where(eq(orders.id, parseInt(cleanId)));
+      await db.update(orders).set({ status }).where(eq(orders.id, cleanId));
       res.json({ success: true, message: 'Order status updated' });
     } catch (err: any) {
       console.error('Update order state failed:', err.message);
@@ -1061,16 +1191,16 @@ async function startServer() {
   // Contact support messaging
   app.post('/api/contact', apiRateLimiter({ windowMs: 60000, max: 4, message: 'Support limits applied; check back in a minute.' }), async (req, res) => {
     const { name, email, message } = req.body;
-    if (!name || !email || !message) {
+    if (!isPlainString(name) || !isPlainString(email) || !isPlainString(message) || !isValidEmail(email)) {
       return res.status(400).json({ success: false, message: 'Please populate name, email, and message content' });
     }
 
     try {
       const msg = {
         id: 'msg_' + Math.random().toString(36).substring(2, 7),
-        name,
-        email: email.toLowerCase(),
-        message,
+        name: cleanString(name),
+        email: cleanString(email).toLowerCase(),
+        message: cleanString(message),
         date: new Date().toLocaleDateString()
       };
 
@@ -1088,11 +1218,12 @@ async function startServer() {
   // AI assistant conversational endpoint
   app.post('/api/assistant', apiRateLimiter({ windowMs: 60000, max: 15, message: 'Limit reached. Please rest 60 seconds.' }), async (req, res) => {
     const { prompt, user } = req.body;
-    if (!prompt) {
+    if (!isPlainString(prompt) || cleanString(prompt) === '') {
       return res.status(400).json({ success: false, message: 'Prompt query required.' });
     }
 
-    const query = prompt.toLowerCase();
+    const normalizedPrompt = cleanString(prompt);
+    const query = normalizedPrompt.toLowerCase();
     let responseText = '';
     let actionObj: any = null;
 
@@ -1129,7 +1260,7 @@ You MUST reply ONLY with a JSON object conforming exactly to this structure (no 
 
           const aiResponse = await client.models.generateContent({
             model: 'gemini-3.5-flash',
-            contents: `${systemMsg}\n\nUser Prompt: ${prompt}`,
+            contents: `${systemMsg}\n\nUser Prompt: ${normalizedPrompt}`,
             config: { responseMimeType: 'application/json' }
           });
 

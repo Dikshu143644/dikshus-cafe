@@ -161,7 +161,6 @@ export default function MenuView({
                 key={item.id}
                 direction="up"
                 delay={(index % 4) * 60}
-                duration={0.7}
               >
                 <ProductCard
                   item={item}

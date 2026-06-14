@@ -1,0 +1,16 @@
+{
+  "name": "Dikshu's Cafe",
+  "short_name": "Dikshu Cafe",
+  "description": "London glasshouse cafe for artisan coffee, brunch, pastries, reservations, and online ordering.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FDFBF7",
+  "theme_color": "#2C2621",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

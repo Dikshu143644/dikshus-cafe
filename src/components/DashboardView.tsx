@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Star, Sparkles, User, Gift, Clock, Calendar, ShieldCheck, Heart } from 'lucide-react';
 import { UserRole, Order, Booking, MenuItem } from '../types';
 import GlassCard from './GlassCard';
+import SecureCopyButton from './SecureCopyButton';
 
 interface DashboardViewProps {
   user: { id: string; name: string; email: string; phone: string; loyaltyPoints: number; favorites: string[] } | null;
@@ -244,9 +245,12 @@ export default function DashboardView({
                       className="bg-white border border-[#deb887]/25 rounded-2xl p-5 space-y-4 shadow-sm"
                     >
                       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-cafe-smoky/5 pb-3">
-                        <div>
-                          <span className="font-mono text-xs font-bold text-cafe-charcoal">ID CODE: {ord.id}</span>
+                        <div className="flex items-start gap-2">
+                          <SecureCopyButton value={ord.id} label={`order ${ord.id}`} />
+                          <div>
+                            <span className="font-mono text-xs font-bold text-cafe-charcoal">ID CODE: {ord.id}</span>
                           <span className="text-[10px] text-cafe-charcoal/40 block mt-0.5">PLACED: {new Date(ord.createdAt).toLocaleTimeString()}</span>
+                          </div>
                         </div>
                         <div className="flex items-center space-x-2">
                           <span className="px-2.5 py-1 text-[10px] uppercase tracking-wider font-mono font-bold rounded bg-yellow-500/10 border border-yellow-500/25 text-yellow-600">
@@ -322,7 +326,10 @@ export default function DashboardView({
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs font-mono uppercase tracking-tight py-2.5">
                         <div>
                           <span className="text-cafe-charcoal/40 block leading-none select-none">CODE ID</span>
-                          <strong className="text-cafe-smoky text-xs font-bold block mt-1">{bk.id}</strong>
+                          <span className="mt-1 flex items-center gap-2">
+                            <strong className="text-cafe-smoky text-xs font-bold block">{bk.id}</strong>
+                            <SecureCopyButton value={bk.id} label={`booking ${bk.id}`} />
+                          </span>
                         </div>
                         <div>
                           <span className="text-cafe-charcoal/40 block leading-none select-none">DATE</span>
@@ -341,7 +348,10 @@ export default function DashboardView({
                       {bk.calendarEventId && (
                         <div className="p-2.5 bg-cafe-smoky/5 rounded border border-cafe-smoky/10 text-[9px] uppercase font-mono tracking-widest text-[#a38059] flex items-center justify-between">
                           <span>Google Calendar sync: ACTIVE</span>
-                          <span className="text-cafe-charcoal/50">EVT CODE: {bk.calendarEventId}</span>
+                          <span className="flex items-center gap-2 text-cafe-charcoal/50">
+                            EVT CODE: {bk.calendarEventId}
+                            <SecureCopyButton value={bk.calendarEventId} label={`calendar event ${bk.calendarEventId}`} />
+                          </span>
                         </div>
                       )}
                     </div>

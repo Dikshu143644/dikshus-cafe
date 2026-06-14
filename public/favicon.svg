@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Dikshu's Cafe">
+  <rect width="64" height="64" rx="14" fill="#2C2621"/>
+  <path d="M18 30h22a10 10 0 0 1-10 10h-2a10 10 0 0 1-10-10Z" fill="#FDFBF7"/>
+  <path d="M40 30h4a4 4 0 0 1 0 8h-5" fill="none" stroke="#C4A484" stroke-width="4" stroke-linecap="round"/>
+  <path d="M24 24c-2-3 2-5 0-8M32 24c-2-3 2-5 0-8M40 24c-2-3 2-5 0-8" fill="none" stroke="#C4A484" stroke-width="3" stroke-linecap="round"/>
+  <path d="M18 44h28" stroke="#C4A484" stroke-width="4" stroke-linecap="round"/>
+</svg>

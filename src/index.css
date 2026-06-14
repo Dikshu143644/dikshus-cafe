@@ -14,6 +14,9 @@
   --color-cafe-gold: #C4A484;
   --color-cafe-bronze: #A88665;
   --color-cafe-latte: #EEDCC6;
+  --color-cafe-sage: #6F9A8E;
+  --color-cafe-ink: #172A3A;
+  --color-cafe-berry: #9E4F64;
   --color-cafe-dark-glass: rgba(44, 38, 33, 0.72);
   --color-cafe-light-glass: rgba(253, 251, 247, 0.75);
 }
@@ -21,7 +24,7 @@
 @layer utilities {
   /* Dynamic Background Blur & Card Styles with Specular Reflection and Saturated frosting */
   .glass-dark {
-    background: linear-gradient(135deg, rgba(34, 28, 24, 0.65) 0%, rgba(20, 16, 14, 0.8) 100%);
+    background: linear-gradient(135deg, rgba(23, 42, 58, 0.78) 0%, rgba(36, 28, 22, 0.84) 100%);
     backdrop-filter: blur(24px) saturate(200%);
     -webkit-backdrop-filter: blur(24px) saturate(200%);
     border: 1px solid rgba(255, 255, 255, 0.12);
@@ -29,11 +32,20 @@
   }
 
   .glass-light {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.42) 0%, rgba(253, 251, 247, 0.18) 100%);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.78) 0%, rgba(242, 246, 244, 0.46) 100%);
     backdrop-filter: blur(28px) saturate(220%);
     -webkit-backdrop-filter: blur(28px) saturate(220%);
-    border: 1px solid rgba(196, 164, 132, 0.38);
+    border: 1px solid rgba(111, 154, 142, 0.22);
     box-shadow: 0 16px 45px -10px rgba(44, 38, 33, 0.08), inset 0 1px 3px rgba(255, 255, 255, 0.85), inset 0 -1px 2px rgba(196, 164, 132, 0.12);
+  }
+
+  .rounded-2xl,
+  .rounded-xl {
+    border-radius: 0.5rem;
+  }
+
+  .tracking-tight {
+    letter-spacing: 0;
   }
 
   /* Button glass glow hover and animation */
@@ -130,10 +142,39 @@
 /* Base resets & theme styles */
 body {
   font-family: var(--font-sans);
+  background:
+    radial-gradient(circle at 12% 8%, rgba(111, 154, 142, 0.16), transparent 28rem),
+    radial-gradient(circle at 88% 12%, rgba(158, 79, 100, 0.12), transparent 24rem),
+    linear-gradient(135deg, #FDFBF7 0%, #F2F6F4 48%, #FBF4EE 100%);
   background-color: var(--color-cafe-cream);
   color: var(--color-cafe-charcoal);
   overflow-x: hidden;
   transition: background-color 0.5s ease, color 0.5s ease;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  letter-spacing: inherit;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid rgba(111, 154, 142, 0.7);
+  outline-offset: 3px;
+}
+
+img {
+  max-width: 100%;
 }
 
 /* Reduced Motion Mode */
