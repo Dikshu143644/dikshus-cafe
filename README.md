@@ -3,7 +3,6 @@
 
 An elegant full-stack café portfolio, featuring a glassmorphism design, real-time booking, menu filters, Razorpay test payment, custom customer and manager dashboards, and an AI-powered Café assistant with server-side Gemini integration.
 
-View your app in AI Studio: https://ai.studio/apps/9ac562ef-1908-44db-846a-69b11ea6cd7e
 
 ## Features
 
